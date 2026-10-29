@@ -3,7 +3,9 @@
   "services": {
     "app": {
       "root": ".",
-      "framework": "create-react-app"
+      "framework": "create-react-app",
+      "buildCommand": "npm run build",
+      "outputDirectory": "build"
     },
     "api": {
       "root": "api",
