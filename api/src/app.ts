@@ -30,7 +30,16 @@ app.get('/', (req: Request, res: Response) => {
     res.send(config.clientUrl);
 });
 
+app.get('/api', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', service: 'doctor-appointment-api' });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 app.use('/api/v1', router);
+app.use('/v1', router);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {

@@ -27,7 +27,14 @@ app.get('/favicon.ico', (req, res) => {
 app.get('/', (req, res) => {
     res.send(config_1.default.clientUrl);
 });
+app.get('/api', (_req, res) => {
+    res.json({ status: 'ok', service: 'doctor-appointment-api' });
+});
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+});
 app.use('/api/v1', routes_1.default);
+app.use('/v1', routes_1.default);
 app.use((err, req, res, next) => {
     if (res.headersSent) {
         return next(err);
