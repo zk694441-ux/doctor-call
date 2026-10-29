@@ -6,14 +6,27 @@ import { FaEye, FaSearch, FaDollarSign, FaCreditCard, FaCalendar, FaDownload } f
 import { Link } from 'react-router-dom';
 import moment from 'moment';
 import './DoctorInvoice.css';
+import useAuthCheck from '../../../redux/hooks/useAuthCheck';
+import PaymentHistory from '../../Patient/PaymentHistory';
 
 const { RangePicker } = DatePicker;
 
 const DoctorInvoice = () => {
-    const { data, isLoading } = useGetDoctorInvoicesQuery();
+    const { role } = useAuthCheck();
+    const { data, isLoading } = useGetDoctorInvoicesQuery(undefined, {
+        skip: role !== 'doctor',
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState(null);
     const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
+
+    if (role === 'patient') {
+        return (
+            <DashboardLayout>
+                <PaymentHistory />
+            </DashboardLayout>
+        );
+    }
 
     const getPatientName = (invoice) => {
         const fullName = `${invoice?.appointment?.patient?.firstName ?? ''} ${invoice?.appointment?.patient?.lastName ?? ''}`;

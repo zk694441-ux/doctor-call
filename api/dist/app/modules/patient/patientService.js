@@ -31,37 +31,46 @@ const client_1 = require("@prisma/client");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const create = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const { password } = payload, othersData = __rest(payload, ["password"]);
+        if (!othersData.email) {
+            throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Email is required !!");
+        }
+        if (!password) {
+            throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Password is required !!");
+        }
         const data = yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-            const { password } = payload, othersData = __rest(payload, ["password"]);
+            const existEmail = yield tx.auth.findUnique({ where: { email: othersData.email } });
+            if (existEmail) {
+                throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Email Already Exist !!");
+            }
+            const existPatient = yield tx.patient.findUnique({ where: { email: othersData.email } });
+            if (existPatient) {
+                throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Email Already Exist !!");
+            }
             const patient = yield tx.patient.create({
                 data: othersData,
             });
-            if (patient) {
-                // Check Email existing
-                const existEmail = yield tx.auth.findUnique({ where: { email: patient.email } });
-                if (existEmail) {
-                    throw new apiError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "Email Already Exist !!");
-                }
-                else {
-                    const auth = yield tx.auth.create({
-                        data: {
-                            email: patient.email,
-                            password: password && (yield bcrypt_1.default.hashSync(password, 12)),
-                            role: client_1.UserRole.patient,
-                            userId: patient.id
-                        },
-                    });
-                    return {
-                        patient,
-                        auth,
-                    };
-                }
-            }
+            const hashedPassword = yield bcrypt_1.default.hash(password, 12);
+            const auth = yield tx.auth.create({
+                data: {
+                    email: patient.email,
+                    password: hashedPassword,
+                    role: client_1.UserRole.patient,
+                    userId: patient.id
+                },
+            });
+            return {
+                patient,
+                auth,
+            };
         }));
         return data;
     }
     catch (error) {
-        throw new apiError_1.default(http_status_1.default.BAD_REQUEST, error.message);
+        if (error instanceof apiError_1.default) {
+            throw error;
+        }
+        throw new apiError_1.default(http_status_1.default.BAD_REQUEST, error.message || "Failed to create patient account !!");
     }
 });
 exports.create = create;

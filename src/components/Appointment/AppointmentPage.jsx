@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Footer from '../Shared/Footer/Footer';
 import Header from '../Shared/Header/Header';
 import CheckoutPage from '../Booking/BookingCheckout/CheckoutPage';
 import PersonalInformation from '../Booking/PersonalInformation';
-import { Button, Steps, message, Modal } from 'antd';
+import { Button, Steps, message, Modal, Divider } from 'antd';
 import moment from 'moment';
 import SelectApppointment from './SelectApppointment';
 import SelectDoctor from './SelectDoctor';
@@ -13,120 +13,178 @@ import { useDispatch } from 'react-redux';
 import { addInvoice } from '../../redux/feature/invoiceSlice';
 import { useNavigate } from 'react-router-dom';
 import { visitReasonOptions } from '../../constant/global';
+import RazorpayCheckout from '../Payment/RazorpayCheckout';
 import './AppointmentFlow.css';
 
 const initialValue = {
-  paymentMethod: 'paypal',
-  paymentType: 'creditCard',
+  paymentMethod: 'razorpay',
+  paymentType: 'online',
   firstName: '',
   lastName: '',
   email: '',
   phone: '',
-  reasonForVisit: '',
+  reasonForVisit: 'General Medical Consultation',
   problemType: '',
   description: '',
   address: '',
-  nameOnCard: '',
-  cardNumber: '',
-  expiredMonth: '',
-  cardExpiredYear: '',
-  cvv: '',
 };
 
 const AppointmentPage = () => {
   const dispatch = useDispatch();
-  const { data, role } = useAuthCheck();
+  const { data: loggedInUser, role } = useAuthCheck();
   const [current, setCurrent] = useState(0);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectTime, setSelectTime] = useState('');
-  const [isCheck, setIsChecked] = useState(false);
+  const [isCheck, setIsChecked] = useState(true);
   const [selectValue, setSelectValue] = useState(initialValue);
-  const [IsDisable, setIsDisable] = useState(true);
-  const [isConfirmDisable, setIsConfirmDisable] = useState(true);
   const [patientId, setPatientId] = useState('');
+  const [createdAppointment, setCreatedAppointment] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const navigate = useNavigate();
 
   const [createAppointment, { data: appointmentData, isError, isSuccess, isLoading, error }] =
     useCreateAppointmentMutation();
 
+  // Auto-populate patient details if logged in
+  useEffect(() => {
+    if (loggedInUser) {
+      setSelectValue((prev) => ({
+        ...prev,
+        firstName: prev.firstName || loggedInUser.firstName || '',
+        lastName: prev.lastName || loggedInUser.lastName || '',
+        email: prev.email || loggedInUser.email || '',
+        phone: prev.phone || loggedInUser.mobile || '',
+        address: prev.address || loggedInUser.address || '',
+        reasonForVisit: prev.reasonForVisit || 'General Medical Consultation',
+      }));
+      if (loggedInUser.id) {
+        setPatientId(loggedInUser.id);
+      }
+    }
+  }, [loggedInUser]);
+
   const handleChange = (e) => setSelectValue({ ...selectValue, [e.target.name]: e.target.value });
 
-  const next = () => setCurrent(current + 1);
+  const next = () => {
+    if (current === 0) {
+      if (!selectedDoctor) {
+        message.warning('Please click to select a doctor first.');
+        return;
+      }
+      setCurrent(1);
+    } else if (current === 1) {
+      if (!selectedDate) {
+        message.warning('Please pick a date for your appointment.');
+        return;
+      }
+      if (!selectTime) {
+        message.warning('Please select an available time slot.');
+        return;
+      }
+      setCurrent(2);
+    } else if (current === 2) {
+      if (!selectValue.firstName?.trim() || !selectValue.lastName?.trim()) {
+        message.warning('Please enter patient first and last name.');
+        return;
+      }
+      if (!selectValue.email?.trim()) {
+        message.warning('Please enter contact email address.');
+        return;
+      }
+      if (!selectValue.phone?.trim()) {
+        message.warning('Please enter contact phone number.');
+        return;
+      }
+      if (!selectValue.reasonForVisit?.trim()) {
+        setSelectValue((prev) => ({ ...prev, reasonForVisit: 'General Medical Consultation' }));
+      }
+      setCurrent(3);
+    }
+  };
+
   const prev = () => setCurrent(current - 1);
 
-  useEffect(() => {
-    const { firstName, lastName, email, phone, nameOnCard, cardNumber, expiredMonth, cardExpiredYear, cvv, reasonForVisit, paymentType } =
-      selectValue;
-    const isInputEmpty = !firstName || !lastName || !email || !phone || !reasonForVisit;
-    const cardFilled = nameOnCard && cardNumber && expiredMonth && cardExpiredYear && cvv;
-    const isConfirmInputEmpty =
-      !isCheck || (paymentType === 'creditCard' ? !cardFilled : false);
-    setIsDisable(isInputEmpty);
-    setIsConfirmDisable(isConfirmInputEmpty);
-  }, [selectValue, isCheck]);
-
   const handleConfirmSchedule = () => {
-    const obj = {};
-    const isPatientSession = role === 'patient' && data?.id;
+    if (!selectedDoctor) {
+      message.warning('Please select a doctor.');
+      setCurrent(0);
+      return;
+    }
+    if (!selectedDate || !selectTime) {
+      message.warning('Please pick an appointment date and time.');
+      setCurrent(1);
+      return;
+    }
+    if (!selectValue.firstName?.trim() || !selectValue.email?.trim() || !selectValue.phone?.trim()) {
+      message.warning('Please fill in required patient contact details.');
+      setCurrent(2);
+      return;
+    }
+    if (!isCheck) {
+      message.warning('Please accept the Cancellation & Refund policy to proceed.');
+      return;
+    }
 
-    obj.patientInfo = {
-      firstName: selectValue.firstName,
-      lastName: selectValue.lastName,
-      email: selectValue.email,
-      phone: selectValue.phone,
-      patientId: isPatientSession ? data.id : undefined,
-      scheduleDate: selectedDate,
-      scheduleTime: selectTime,
-      reasonForVisit: [
-        selectValue.problemType && visitReasonOptions.find((o) => o.value === selectValue.problemType)?.label,
-        selectValue.reasonForVisit,
-      ]
-        .filter(Boolean)
-        .join(' — ') || selectValue.reasonForVisit,
-      description: selectValue.description || undefined,
-      address: selectValue.address || undefined,
-      ...(selectedDoctor?.id && { doctorId: selectedDoctor.id }),
+    const isPatientSession = role === 'patient' && loggedInUser?.id;
+
+    const obj = {
+      patientInfo: {
+        firstName: selectValue.firstName,
+        lastName: selectValue.lastName,
+        email: selectValue.email,
+        phone: selectValue.phone,
+        patientId: isPatientSession ? loggedInUser.id : undefined,
+        scheduleDate: selectedDate,
+        scheduleTime: selectTime,
+        reasonForVisit: [
+          selectValue.problemType && visitReasonOptions.find((o) => o.value === selectValue.problemType)?.label,
+          selectValue.reasonForVisit,
+        ]
+          .filter(Boolean)
+          .join(' — ') || selectValue.reasonForVisit || 'General Medical Consultation',
+        description: selectValue.description || undefined,
+        address: selectValue.address || undefined,
+        doctorId: selectedDoctor.id,
+      },
+      payment: {
+        paymentType: selectValue.paymentType || 'online',
+        paymentMethod: selectValue.paymentMethod || 'razorpay',
+      },
     };
-    obj.payment = {
-      paymentType: selectValue.paymentType,
-      paymentMethod: selectValue.paymentMethod,
-      cardNumber: selectValue.cardNumber,
-      cardExpiredYear: selectValue.cardExpiredYear,
-      cvv: selectValue.cvv,
-      expiredMonth: selectValue.expiredMonth,
-      nameOnCard: selectValue.nameOnCard,
-    };
+
     createAppointment(obj);
   };
 
   useEffect(() => {
     if (isSuccess && appointmentData?.id) {
-      message.success('Appointment scheduled successfully');
-      setSelectValue(initialValue);
-      setSelectedDoctor(null);
-      setSelectedDate('');
-      setSelectTime('');
-      setCurrent(0);
       dispatch(addInvoice({ ...appointmentData }));
+      const isCash = selectValue.paymentType === 'cash';
 
-      const goToSuccess = () => navigate(`/booking/success/${appointmentData.id}`);
-      Modal.success({
-        className: 'appointment-success-modal',
-        title: 'Appointment scheduled',
-        content: 'Confirmation and details have been sent to your email. You will be redirected to your booking shortly.',
-        okText: 'View booking',
-        onOk: goToSuccess,
-      });
-      const t = setTimeout(goToSuccess, 4000);
-      return () => clearTimeout(t);
+      if (isCash) {
+        message.success('Appointment scheduled successfully! Please pay at the clinic.');
+        navigate(`/booking/success/${appointmentData.id}`);
+      } else {
+        // Online payment with Razorpay
+        setCreatedAppointment(appointmentData);
+        setShowPaymentModal(true);
+      }
     }
     if (isError) {
-      message.error(error?.data?.message || 'Something went wrong');
+      message.error(error?.data?.message || 'Failed to schedule appointment. Please try again.');
     }
   }, [isSuccess, isError, appointmentData, error, dispatch, navigate]);
 
-  const handleDateChange = (date) => setSelectedDate(moment(date).format('YYYY-MM-DD HH:mm:ss'));
+  const handlePaymentSuccess = () => {
+    setShowPaymentModal(false);
+    navigate(`/booking/success/${createdAppointment?.id}`);
+  };
+
+  const handlePaymentFailure = () => {
+    message.warning('Payment incomplete. Your slot is held for 15 minutes.');
+  };
+
+  const handleDateChange = (date) => setSelectedDate(moment(date).format('YYYY-MM-DD'));
 
   const steps = [
     {
@@ -158,14 +216,14 @@ const AppointmentPage = () => {
       ),
     },
     {
-      title: 'Payment',
+      title: 'Payment & Confirmation',
       content: (
         <CheckoutPage
           handleChange={handleChange}
           selectValue={selectValue}
           isCheck={isCheck}
           setIsChecked={setIsChecked}
-          data={selectedDoctor ? { ...selectedDoctor, price: 60 } : false}
+          data={selectedDoctor ? { ...selectedDoctor, price: selectedDoctor.price || 60 } : false}
           selectedDate={selectedDate}
           selectTime={selectTime}
         />
@@ -175,17 +233,14 @@ const AppointmentPage = () => {
 
   const items = steps.map((item) => ({ key: item.title, title: item.title }));
 
-  const canProceedStep0 = !!selectedDoctor;
-  const canProceedStep1 = !!selectTime && !!selectedDate;
-
   return (
     <>
       <Header />
-      <div className="appointment-page">
+      <div className="appointment-page" style={{ marginTop: '7rem', marginBottom: '8rem' }}>
         <div className="container container-wrap">
-          <Steps current={current} items={items} />
+          <Steps current={current} items={items} responsive />
           <div className="appointment-step">{steps[current].content}</div>
-          <div className="appointment-actions">
+          <div className="appointment-actions" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, borderTop: '1px solid #e9ecef', paddingTop: 16 }}>
             <div>
               {current > 0 && (
                 <Button type="default" size="large" onClick={prev}>
@@ -198,33 +253,70 @@ const AppointmentPage = () => {
                 <Button
                   type="primary"
                   size="large"
-                  disabled={
-                    current === 0
-                      ? !canProceedStep0
-                      : current === 1
-                        ? !canProceedStep1
-                        : IsDisable
-                  }
                   onClick={next}
+                  style={{ background: '#0d6efd', borderColor: '#0d6efd', minWidth: 130 }}
                 >
-                  Next
+                  Next Step →
                 </Button>
               )}
               {current === steps.length - 1 && (
                 <Button
                   type="primary"
                   size="large"
-                  disabled={isConfirmDisable}
                   loading={isLoading}
                   onClick={handleConfirmSchedule}
+                  style={{
+                    background: '#198754',
+                    borderColor: '#198754',
+                    minWidth: 220,
+                    fontWeight: 600,
+                    fontSize: 16,
+                  }}
                 >
-                  Confirm & schedule
+                  {selectValue.paymentType === 'cash' ? 'Confirm Appointment (Pay at Clinic)' : 'Confirm & Proceed to Payment'}
                 </Button>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Razorpay Online Consultation Payment Modal */}
+      <Modal
+        open={showPaymentModal}
+        title="Complete Consultation Payment"
+        onCancel={() => {
+          setShowPaymentModal(false);
+          message.info('Payment window closed. Your slot is reserved for 15 minutes.');
+        }}
+        footer={null}
+        centered
+        width={520}
+      >
+        <div style={{ textAlign: 'center', padding: '10px 0' }}>
+          <p style={{ fontSize: '15px', color: '#495057', marginBottom: 6 }}>
+            Tracking ID: <strong>{createdAppointment?.trackingId}</strong>
+          </p>
+          <p style={{ fontSize: '13px', color: '#6c757d' }}>
+            Doctor: <strong>Dr. {selectedDoctor?.firstName} {selectedDoctor?.lastName}</strong> ({selectedDate} at {selectTime})
+          </p>
+          <Divider style={{ margin: '12px 0' }} />
+          {createdAppointment?.id && (
+            <RazorpayCheckout
+              appointmentId={createdAppointment.id}
+              appointmentData={{
+                patientName: `${selectValue.firstName} ${selectValue.lastName}`,
+                email: selectValue.email,
+                phone: selectValue.phone,
+                doctorName: `${selectedDoctor?.firstName || ''} ${selectedDoctor?.lastName || ''}`,
+              }}
+              onSuccess={handlePaymentSuccess}
+              onFailure={handlePaymentFailure}
+            />
+          )}
+        </div>
+      </Modal>
+
       <Footer />
     </>
   );

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import './index.css';
 import useAuthCheck from '../../../redux/hooks/useAuthCheck';
-import TopHeader from '../TopHeader/TopHeader';
 import { Link, useNavigate } from 'react-router-dom';
 import img from '../../../images/logo.png';
 import avatar from '../../../images/avatar.jpg';
@@ -19,7 +18,6 @@ const Header = () => {
     const navigate = useNavigate();
     const { authChecked, data, role } = useAuthCheck();
     const [isLoggedIn, setIsLogged] = useState(false);
-    const [show, setShow] = useState(true);
     const [open, setOpen] = useState(false);
 
     const token = getUserInfo();
@@ -43,20 +41,6 @@ const Header = () => {
 
     const dashboardPath = effectiveRole === 'admin' ? '/admin/dashboard' : '/dashboard';
     const dashboardLabel = effectiveRole === 'admin' ? 'Dashboard' : 'Dashboard';
-
-    const handleScroll = () => {
-        const currentScroll = window.scrollY;
-        if (currentScroll > 50) {
-            setShow(false);
-        } else {
-            setShow(true);
-        }
-    };
-
-    useEffect(() => {
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     useEffect(() => {
         if (authChecked) setIsLogged(true);
@@ -94,30 +78,25 @@ const Header = () => {
     );
 
     return (
-        <>
-            <div className={`navbar navbar-expand-lg navbar-light ${!show && 'hideTopHeader'}`} expand="lg">
-                <TopHeader />
+        <header id="header" className="fixed-top stickyHeader">
+            <div className="container d-flex align-items-center">
+                <Link to={'/'} className="logo me-auto">
+                    <img src={img} alt="" className="img-fluid" />
+                </Link>
+                <HeaderNav
+                    isLoggedIn={isLoggedIn}
+                    data={data}
+                    avatar={avatar}
+                    content={content}
+                    popoverTitle={popoverTitle}
+                    open={open}
+                    setOpen={setOpen}
+                />
+                <Link to={'/appointment'} className="appointment-btn scrollto">
+                    <span className="d-none d-md-inline">Make an</span> Appointment
+                </Link>
             </div>
-            <header id="header" className={`fixed-top ${!show && 'stickyHeader'}`}>
-                <div className="container d-flex align-items-center">
-                    <Link to={'/'} className="logo me-auto">
-                        <img src={img} alt="" className="img-fluid" />
-                    </Link>
-                    <HeaderNav
-                        isLoggedIn={isLoggedIn}
-                        data={data}
-                        avatar={avatar}
-                        content={content}
-                        popoverTitle={popoverTitle}
-                        open={open}
-                        setOpen={setOpen}
-                    />
-                    <Link to={'/appointment'} className="appointment-btn scrollto">
-                        <span className="d-none d-md-inline">Make an</span> Appointment
-                    </Link>
-                </div>
-            </header>
-        </>
+        </header>
     );
 };
 

@@ -74,7 +74,11 @@ const createAppointment = (payload) => __awaiter(void 0, void 0, void 0, functio
     if (!isDoctorExist) {
         throw new apiError_1.default(http_status_1.default.NOT_FOUND, 'Doctor Account is not found !!');
     }
-    patientInfo['paymentStatus'] = client_1.paymentStatus.paid;
+    const isOnline = (payment === null || payment === void 0 ? void 0 : payment.paymentType) === 'online' || (payment === null || payment === void 0 ? void 0 : payment.paymentMethod) === 'razorpay' || (payment === null || payment === void 0 ? void 0 : payment.paymentMethod) === 'stripe';
+    patientInfo['paymentStatus'] = client_1.paymentStatus.unpaid;
+    if (isOnline) {
+        patientInfo['paymentPendingUntil'] = (0, moment_1.default)().add(15, 'minutes').toDate();
+    }
     const result = yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
         const previousAppointment = yield tx.appointments.findFirst({
@@ -97,8 +101,8 @@ const createAppointment = (payload) => __awaiter(void 0, void 0, void 0, functio
                 patient: true
             }
         });
-        const { paymentMethod, paymentType } = payment;
-        const docFee = Number(isDoctorExist.price);
+        const { paymentMethod, paymentType } = payment || {};
+        const docFee = isDoctorExist.price ? Number(isDoctorExist.price) : 60;
         const vat = (15 / 100) * (docFee + 10);
         if (appointment.id) {
             yield tx.payment.create({
@@ -109,7 +113,7 @@ const createAppointment = (payload) => __awaiter(void 0, void 0, void 0, functio
                     paymentType: paymentType,
                     vat: vat,
                     DoctorFee: docFee,
-                    totalAmount: (vat + docFee),
+                    totalAmount: (vat + docFee + 10),
                 }
             });
         }
@@ -141,7 +145,12 @@ const createAppointment = (payload) => __awaiter(void 0, void 0, void 0, functio
         const replacementObj = appointmentObj;
         const subject = `Appointment Confirm With Dr ${((_s = appointment === null || appointment === void 0 ? void 0 : appointment.doctor) === null || _s === void 0 ? void 0 : _s.firstName) + ' ' + ((_t = appointment === null || appointment === void 0 ? void 0 : appointment.doctor) === null || _t === void 0 ? void 0 : _t.lastName)} at ${appointment.scheduleDate} + ' ' + ${appointment.scheduleTime}`;
         const toMail = `${appointment.email + ',' + ((_u = appointment.doctor) === null || _u === void 0 ? void 0 : _u.email)}`;
-        (0, emailTransporter_1.EmailtTransporter)({ pathName, replacementObj, toMail, subject });
+        try {
+            yield (0, emailTransporter_1.EmailtTransporter)({ pathName, replacementObj, toMail, subject });
+        }
+        catch (err) {
+            console.warn('[email] Appointment confirmation email skipped:', err);
+        }
         return appointment;
     }));
     return result;
@@ -182,7 +191,7 @@ const createAppointmentByUnAuthenticateUser = (payload) => __awaiter(void 0, voi
         const appointment = yield tx.appointments.create({
             data: patientInfo,
         });
-        const { paymentMethod, paymentType } = payment;
+        const { paymentMethod, paymentType } = payment || {};
         const vat = (15 / 100) * (docFee + 10);
         if (appointment.id) {
             yield tx.payment.create({
@@ -193,7 +202,7 @@ const createAppointmentByUnAuthenticateUser = (payload) => __awaiter(void 0, voi
                     paymentType: paymentType,
                     vat: vat,
                     DoctorFee: docFee,
-                    totalAmount: (vat + docFee),
+                    totalAmount: (vat + docFee + 10),
                 }
             });
         }
@@ -211,7 +220,12 @@ const createAppointmentByUnAuthenticateUser = (payload) => __awaiter(void 0, voi
         const replacementObj = appointmentObj;
         const subject = `Appointment Confirm at ${appointment.scheduleDate} ${appointment.scheduleTime}`;
         const toMail = `${appointment.email}`;
-        (0, emailTransporter_1.EmailtTransporter)({ pathName, replacementObj, toMail, subject });
+        try {
+            yield (0, emailTransporter_1.EmailtTransporter)({ pathName, replacementObj, toMail, subject });
+        }
+        catch (err) {
+            console.warn('[email] Appointment confirmation email skipped:', err);
+        }
         return appointment;
     }));
     return result;

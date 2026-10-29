@@ -6,37 +6,51 @@ import bcrypt from 'bcrypt';
 
 export const create = async (payload: any): Promise<any> => {
     try {
+        const { password, ...othersData } = payload;
+
+        if (!othersData.email) {
+            throw new ApiError(httpStatus.BAD_REQUEST, "Email is required !!");
+        }
+        if (!password) {
+            throw new ApiError(httpStatus.BAD_REQUEST, "Password is required !!");
+        }
+
         const data = await prisma.$transaction(async (tx) => {
-            const { password, ...othersData } = payload;
+            const existEmail = await tx.auth.findUnique({ where: { email: othersData.email } });
+            if (existEmail) {
+                throw new ApiError(httpStatus.BAD_REQUEST, "Email Already Exist !!");
+            }
+
+            const existPatient = await tx.patient.findUnique({ where: { email: othersData.email } });
+            if (existPatient) {
+                throw new ApiError(httpStatus.BAD_REQUEST, "Email Already Exist !!");
+            }
 
             const patient = await tx.patient.create({
                 data: othersData,
             });
 
-            if (patient) {
-                // Check Email existing
-                const existEmail = await tx.auth.findUnique({ where: { email: patient.email } });
-                if (existEmail) {
-                    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Email Already Exist !!")
-                } else {
-                    const auth = await tx.auth.create({
-                        data: {
-                            email: patient.email,
-                            password: password && await bcrypt.hashSync(password, 12),
-                            role: UserRole.patient,
-                            userId: patient.id
-                        },
-                    });
-                    return {
-                        patient,
-                        auth,
-                    };
-                }
-            }
+            const hashedPassword = await bcrypt.hash(password, 12);
+            const auth = await tx.auth.create({
+                data: {
+                    email: patient.email,
+                    password: hashedPassword,
+                    role: UserRole.patient,
+                    userId: patient.id
+                },
+            });
+
+            return {
+                patient,
+                auth,
+            };
         });
 
         return data;
     } catch (error: any) {
-        throw new ApiError(httpStatus.BAD_REQUEST, error.message)
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(httpStatus.BAD_REQUEST, error.message || "Failed to create patient account !!");
     }
 };

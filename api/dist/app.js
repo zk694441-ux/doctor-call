@@ -13,7 +13,12 @@ const config_1 = __importDefault(require("./config"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use((0, cookie_parser_1.default)());
-app.use(express_1.default.json());
+// Capture rawBody for payment webhook signature validation
+app.use(express_1.default.json({
+    verify: (req, _res, buf) => {
+        req.rawBody = buf;
+    },
+}));
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use(express_1.default.static('public'));
 app.get('/favicon.ico', (req, res) => {

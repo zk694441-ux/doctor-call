@@ -12,12 +12,17 @@ import { DoctorTimeSlotRouter } from '../modules/doctorTimeSlot/doctorTimeSlot.r
 import { BlogRoutes } from '../modules/blog/blog.route';
 import { MedicineRouter } from '../modules/medicines/medicine.route';
 import { ContactRouter } from '../modules/contact/contact.route';
+import { PaymentRouter } from '../modules/payment/payment.route';
 
 const router = express.Router();
 
 router.use(demoAdminGuard);
 
 const moduleRoutes = [
+    {
+        path: '/payment',
+        route: PaymentRouter,
+    },
     {
         path: '/doctor',
         route: DoctorRouter,

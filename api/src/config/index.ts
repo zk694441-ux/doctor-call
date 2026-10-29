@@ -32,5 +32,22 @@ export default {
     gmail_app_Email: process.env.GMAIL_APP_EMAIL,
     defaultAdminDoctor: process.env.DEFULT_ADMIN_DOCTOR,
     backendLiveUrl: process.env.BACKEND_LIVE_URL,
-    backendLocalUrl: process.env.BACKEND_LOCAL_URL
+    backendLocalUrl: process.env.BACKEND_LOCAL_URL,
+    payment: {
+        provider: process.env.PAYMENT_PROVIDER || 'razorpay',
+        razorpay: {
+            keyId: process.env.RAZORPAY_KEY_ID || '',
+            keySecret: process.env.RAZORPAY_KEY_SECRET || '',
+            webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || '',
+        },
+        stripe: {
+            secretKey: process.env.STRIPE_SECRET_KEY || '',
+            webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+        },
+        refund: {
+            fullRefundHours: Number(process.env.REFUND_FULL_HOURS) || 24,
+            partialRefundHours: Number(process.env.REFUND_PARTIAL_HOURS) || 4,
+            partialRefundPercent: Number(process.env.REFUND_PARTIAL_PERCENT) || 70,
+        },
+    },
 }

@@ -41,8 +41,8 @@ const Contact = () => {
 		{
 			icon: <FaEnvelope />,
 			title: 'Email us',
-			content: 'ujjalzaman@gmail.com',
-			link: 'mailto:ujjalzaman@gmail.com'
+			content: 'zahid khan (zahidkhan@gmail.com)',
+			link: 'mailto:zahidkhan@gmail.com'
 		},
 		{
 			icon: <FaClock />,

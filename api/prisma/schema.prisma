@@ -134,6 +134,7 @@ model Appointments {
   paymentStatus      paymentStatus?      @default(unpaid)
   prescriptionStatus prescriptionStatus? @default(notIssued)
   isFollowUp         Boolean?            @default(false)
+  paymentPendingUntil DateTime?
   patientType        String?
 
   createdAt    DateTime       @default(now())
@@ -145,18 +146,55 @@ model Appointments {
 }
 
 model Payment {
-  id            String       @id @default(uuid())
+  id            String        @id @default(uuid())
   appointmentId String
-  appointment   Appointments @relation(fields: [appointmentId], references: [id])
+  appointment   Appointments  @relation(fields: [appointmentId], references: [id])
   paymentMethod String
   paymentType   String
 
   DoctorFee   Int
   bookingFee  Int
-  vat         Int?
-  totalAmount Int
+  vat         Float?
+  totalAmount Float
+
+  // Gateway fields
+  provider      String   @default("razorpay")
+  orderId       String?  @unique
+  paymentId     String?  @unique
+  status        String   @default("pending")
+
+  refunds   Refund[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@map("Payment")
+}
+
+model Refund {
+  id              String    @id @default(uuid())
+  paymentId       String
+  payment         Payment   @relation(fields: [paymentId], references: [id])
+  gatewayRefundId String?   @unique
+  amount          Float
+  reason          String?
+  status          String    @default("pending")
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  @@map("Refund")
+}
+
+model PaymentEvent {
+  id        String   @id @default(uuid())
+  eventId   String   @unique
+  provider  String
+  eventType String
+  payload   String
+  createdAt DateTime @default(now())
+
+  @@map("PaymentEvent")
 }
 
 model Reviews {

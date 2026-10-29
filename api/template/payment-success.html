@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Payment Successful</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
+<div style="max-width:600px;margin:auto;background:#fff;border-radius:8px;padding:30px">
+  <h2 style="color:#0d6efd">Payment Successful ✓</h2>
+  <p>Hi {{patientName}},</p>
+  <p>Your payment of <strong>${{amount}}</strong> was received successfully.</p>
+  <table style="width:100%;border-collapse:collapse;margin:20px 0">
+    <tr><td style="padding:8px;border-bottom:1px solid #eee"><strong>Appointment Tracking ID</strong></td><td style="padding:8px;border-bottom:1px solid #eee">{{trackingId}}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee"><strong>Doctor</strong></td><td style="padding:8px;border-bottom:1px solid #eee">Dr. {{doctorName}}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee"><strong>Date</strong></td><td style="padding:8px;border-bottom:1px solid #eee">{{scheduleDate}}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee"><strong>Time</strong></td><td style="padding:8px;border-bottom:1px solid #eee">{{scheduleTime}}</td></tr>
+    <tr><td style="padding:8px"><strong>Payment ID</strong></td><td style="padding:8px">{{paymentId}}</td></tr>
+  </table>
+  <p style="color:#6c757d;font-size:12px">If you have any questions, contact us at zahidkhan@gmail.com</p>
+</div>
+</body>
+</html>

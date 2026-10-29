@@ -30,7 +30,11 @@ const createAppointment = async (payload: any): Promise<Appointments | null | an
     if (!isDoctorExist) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Doctor Account is not found !!')
     }
-    patientInfo['paymentStatus'] = paymentStatus.paid;
+    const isOnline = payment?.paymentType === 'online' || payment?.paymentMethod === 'razorpay' || payment?.paymentMethod === 'stripe';
+    patientInfo['paymentStatus'] = paymentStatus.unpaid;
+    if (isOnline) {
+        patientInfo['paymentPendingUntil'] = moment().add(15, 'minutes').toDate();
+    }
   
     const result = await prisma.$transaction(async (tx) => {
         const previousAppointment = await tx.appointments.findFirst({
@@ -55,8 +59,8 @@ const createAppointment = async (payload: any): Promise<Appointments | null | an
                 patient: true
             }
         });
-        const { paymentMethod, paymentType } = payment;
-        const docFee = Number(isDoctorExist.price);
+        const { paymentMethod, paymentType } = payment || {};
+        const docFee = isDoctorExist.price ? Number(isDoctorExist.price) : 60;
         const vat = (15 / 100) * (docFee + 10)
         if (appointment.id) {
             await tx.payment.create({
@@ -67,7 +71,7 @@ const createAppointment = async (payload: any): Promise<Appointments | null | an
                     paymentType: paymentType,
                     vat: vat,
                     DoctorFee: docFee,
-                    totalAmount: (vat + docFee),
+                    totalAmount: (vat + docFee + 10),
                 }
             })
         }
@@ -99,7 +103,11 @@ const createAppointment = async (payload: any): Promise<Appointments | null | an
         const replacementObj = appointmentObj;
         const subject = `Appointment Confirm With Dr ${appointment?.doctor?.firstName + ' ' + appointment?.doctor?.lastName} at ${appointment.scheduleDate} + ' ' + ${appointment.scheduleTime}`
         const toMail = `${appointment.email + ',' + appointment.doctor?.email}`;
-        EmailtTransporter({ pathName, replacementObj, toMail, subject })
+        try {
+            await EmailtTransporter({ pathName, replacementObj, toMail, subject })
+        } catch (err) {
+            console.warn('[email] Appointment confirmation email skipped:', err);
+        }
         return appointment;
     });
     return result;
@@ -144,7 +152,7 @@ const createAppointmentByUnAuthenticateUser = async (payload: any): Promise<Appo
         const appointment = await tx.appointments.create({
             data: patientInfo,
         });
-        const { paymentMethod, paymentType } = payment;
+        const { paymentMethod, paymentType } = payment || {};
         const vat = (15 / 100) * (docFee + 10);
         if (appointment.id) {
             await tx.payment.create({
@@ -155,7 +163,7 @@ const createAppointmentByUnAuthenticateUser = async (payload: any): Promise<Appo
                     paymentType: paymentType,
                     vat: vat,
                     DoctorFee: docFee,
-                    totalAmount: (vat + docFee),
+                    totalAmount: (vat + docFee + 10),
                 }
             })
         }
@@ -175,7 +183,11 @@ const createAppointmentByUnAuthenticateUser = async (payload: any): Promise<Appo
         const subject = `Appointment Confirm at ${appointment.scheduleDate} ${appointment.scheduleTime}`
 
         const toMail = `${appointment.email}`;
-        EmailtTransporter({ pathName, replacementObj, toMail, subject })
+        try {
+            await EmailtTransporter({ pathName, replacementObj, toMail, subject })
+        } catch (err) {
+            console.warn('[email] Appointment confirmation email skipped:', err);
+        }
         return appointment;
     })
 

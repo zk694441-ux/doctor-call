@@ -11,17 +11,24 @@ const app: Application = express();
 app.use(cors());
 app.use(CookieParser());
 
-app.use(express.json());
+// Capture rawBody for payment webhook signature validation
+app.use(
+    express.json({
+        verify: (req: Request & { rawBody?: Buffer }, _res: Response, buf: Buffer) => {
+            req.rawBody = buf;
+        },
+    })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 app.get('/favicon.ico', (req: Request, res: Response) => {
     res.status(204).end();
-})
+});
 
 app.get('/', (req: Request, res: Response) => {
-    res.send(config.clientUrl)
-})
+    res.send(config.clientUrl);
+});
 
 app.use('/api/v1', router);
 

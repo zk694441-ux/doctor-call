@@ -11,86 +11,91 @@ const PersonalInformation = ({ handleChange, selectValue, setPatientId = () => {
   const [checked, setChecked] = useState(false);
   const { data } = useAuthCheck();
 
-  const onChange = (e) => setChecked(e.target.checked);
-
   const onFieldChange = (name, value) => {
     handleChange({ target: { name, value } });
   };
 
-  useEffect(() => {
-    if (checked) {
+  const handleCheckboxChange = (e) => {
+    const isChecked = e.target.checked;
+    setChecked(isChecked);
+
+    if (isChecked) {
       if (data?.id) {
         setPatientId(data.id);
-        message.success('Your account details have been linked.');
-      } else {
-        message.warning('Please log in to link your account.');
       }
+      if (data?.firstName) onFieldChange('firstName', data.firstName);
+      if (data?.lastName) onFieldChange('lastName', data.lastName);
+      if (data?.email) onFieldChange('email', data.email);
+      if (data?.mobile) onFieldChange('phone', data.mobile);
+      if (data?.address) onFieldChange('address', data.address);
+      message.success('Account profile details populated.');
     }
-  }, [checked, data, setPatientId]);
+  };
 
   return (
-    <div className="appointment-step appointment-step--patient">
-      <p className="appointment-step__title">Patient information</p>
-      <p className="appointment-step__subtitle">Please provide your details and reason for the visit.</p>
+    <div className="appointment-step appointment-step--patient" style={{ marginTop: '1rem' }}>
+      <p className="appointment-step__title">Patient Contact &amp; Consultation Details</p>
+      <p className="appointment-step__subtitle">Please enter the details of the patient who will attend the consultation.</p>
 
-      <Card className="patient-form-card" size="small">
-        <p className="patient-form-card__title">Account</p>
-        <Checkbox checked={checked} onChange={onChange}>
-          I already have an account — use my saved details
-        </Checkbox>
-      </Card>
+      {data && (
+        <Card className="patient-form-card mb-3" size="small" style={{ background: '#f8f9fa' }}>
+          <Checkbox checked={checked} onChange={handleCheckboxChange}>
+            <strong>Auto-fill with my account details ({data?.firstName} {data?.lastName} - {data?.email})</strong>
+          </Checkbox>
+        </Card>
+      )}
 
-      <Card className="patient-form-card" size="small">
-        <p className="patient-form-card__title">Personal details</p>
+      <Card className="patient-form-card mb-3" size="small">
+        <p className="patient-form-card__title">Personal Details</p>
         <div className="row g-3">
           <div className="col-md-6">
-            <label className="form-label">First name</label>
+            <label className="form-label">First Name <span className="text-danger">*</span></label>
             <Input
-              placeholder="First name"
+              placeholder="e.g. John"
               name="firstName"
               value={firstName || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>
           <div className="col-md-6">
-            <label className="form-label">Last name</label>
+            <label className="form-label">Last Name <span className="text-danger">*</span></label>
             <Input
-              placeholder="Last name"
+              placeholder="e.g. Doe"
               name="lastName"
               value={lastName || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>
           <div className="col-md-6">
-            <label className="form-label">Email</label>
+            <label className="form-label">Email Address <span className="text-danger">*</span></label>
             <Input
               type="email"
-              placeholder="email@example.com"
+              placeholder="name@example.com"
               name="email"
               value={email || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>
           <div className="col-md-6">
-            <label className="form-label">Phone</label>
+            <label className="form-label">Phone Number <span className="text-danger">*</span></label>
             <Input
-              placeholder="Phone number"
+              placeholder="+91 9876543210"
               name="phone"
               value={phone || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>
           <div className="col-12">
-            <label className="form-label">Address (optional)</label>
+            <label className="form-label">Residential Address (optional)</label>
             <Input
-              placeholder="Street, city, state, ZIP"
+              placeholder="City, State, Country"
               name="address"
               value={address || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>
@@ -98,39 +103,27 @@ const PersonalInformation = ({ handleChange, selectValue, setPatientId = () => {
       </Card>
 
       <Card className="patient-form-card" size="small">
-        <p className="patient-form-card__title">Visit details</p>
+        <p className="patient-form-card__title">Consultation Details</p>
         <div className="row g-3">
           <div className="col-12">
-            <label className="form-label">Type of visit / Problem</label>
-            <Select
-              placeholder="Select type of visit"
-              options={visitReasonOptions}
-              value={problemType || undefined}
-              onChange={(value) => onFieldChange('problemType', value)}
-              allowClear
-              style={{ width: '100%' }}
-              size="large"
-            />
-          </div>
-          <div className="col-12">
-            <label className="form-label">Reason for visit *</label>
+            <label className="form-label">Reason for Visit / Symptoms</label>
             <TextArea
               rows={3}
-              placeholder="Describe your main reason for this appointment, symptoms, or concerns."
+              placeholder="Brief description of the health reason or symptoms (e.g., Routine Checkup, Follow up, Consultation)..."
               name="reasonForVisit"
               value={reasonForVisit || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>
           <div className="col-12">
-            <label className="form-label">Additional notes (optional)</label>
+            <label className="form-label">Additional Medical Notes (optional)</label>
             <TextArea
               rows={2}
-              placeholder="Any other details you want the doctor to know (medications, allergies, etc.)."
+              placeholder="Any current medications, allergies, or prior health history..."
               name="description"
               value={description || ''}
-              onChange={(e) => handleChange(e)}
+              onChange={handleChange}
               size="large"
             />
           </div>

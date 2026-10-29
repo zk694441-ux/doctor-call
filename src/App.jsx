@@ -43,6 +43,8 @@ import Dashboard from './components/Doctor/Dashboard/Dashboard';
 import PrivateOutlet from './components/Shared/PrivateOutlet';
 import AdminPrivateOutlet from './components/Shared/AdminPrivateOutlet';
 import NotFound from './components/UI/NotFound';
+import PaymentHistory from './components/Patient/PaymentHistory';
+import DashboardLayout from './components/Doctor/DashboardLayout/DashboardLayout';
 
 function App() {
   return (
@@ -64,6 +66,8 @@ function App() {
           <Route path='/dashboard/profile-setting' element={<ProfileSetting />} />
           <Route path='/dashboard/favourite' element={<PatientFavouriteDoctor />} />
           <Route path='/dashboard/invoices' element={<DoctorInvoice />} />
+          <Route path='/dashboard/payment-history' element={<DashboardLayout><PaymentHistory /></DashboardLayout>} />
+          <Route path='/patient/payment-history' element={<DashboardLayout><PaymentHistory /></DashboardLayout>} />
         </Route>
         <Route path='/login' element={<SignInForm />} />
         <Route path='/' element={<Home />} />
@@ -98,4 +102,5 @@ function App() {
     </Router >
   );
 }
+
 export default App;

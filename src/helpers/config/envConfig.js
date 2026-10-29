@@ -9,7 +9,7 @@ const REACT_APP_API_BASE_URL =
 
 export const getBaseUrl = () => {
 	const trimmed = String(REACT_APP_API_BASE_URL).trim().replace(/\/+$/, '');
-	if (!trimmed) return REACT_APP_API_BASE_URL;
+	if (!trimmed) return '/api/v1';
 	if (/\/api\/v1$/i.test(trimmed)) return trimmed;
 	return `${trimmed}/api/v1`;
 };

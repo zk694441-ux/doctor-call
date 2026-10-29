@@ -58,26 +58,27 @@ const { v4: uuidv4 } = require('uuid');
 const path = __importStar(require("path"));
 const loginUser = (user) => __awaiter(void 0, void 0, void 0, function* () {
     const { email: IEmail, password } = user;
-    const isUserExist = yield prisma_1.default.auth.findUnique({
-        where: { email: IEmail }
+    const cleanEmail = String(IEmail || '').trim().toLowerCase();
+    const isUserExist = yield prisma_1.default.auth.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } }
     });
     if (!isUserExist) {
-        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User is not Exist !");
+        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User does not exist !");
     }
     // check Verified doctor or not
     if (isUserExist.role === 'doctor') {
-        const getDoctorInfo = yield prisma_1.default.doctor.findUnique({
+        const getDoctorInfo = yield prisma_1.default.doctor.findFirst({
             where: {
-                email: isUserExist.email
+                email: { equals: isUserExist.email, mode: 'insensitive' }
             }
         });
         if (getDoctorInfo && (getDoctorInfo === null || getDoctorInfo === void 0 ? void 0 : getDoctorInfo.verified) === false) {
-            throw new apiError_1.default(http_status_1.default.NOT_FOUND, "Please Verify Your Email First !");
+            throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Please Verify Your Email First !");
         }
     }
     const isPasswordMatched = yield bcrypt_1.default.compare(password, isUserExist.password);
     if (!isPasswordMatched) {
-        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "Password is not Matched !");
+        throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Password does not match !");
     }
     const { role, userId, isDemo, email } = isUserExist;
     const accessToken = jwtHelper_1.JwtHelper.createToken({ role, userId, email, isDemo: role === 'admin' ? Boolean(isDemo) : false }, config_1.default.jwt.secret, config_1.default.jwt.JWT_EXPIRES_IN);
@@ -88,15 +89,16 @@ const loginUser = (user) => __awaiter(void 0, void 0, void 0, function* () {
 });
 const VerificationUser = (user) => __awaiter(void 0, void 0, void 0, function* () {
     const { email: IEmail, password } = user;
-    const isUserExist = yield prisma_1.default.auth.findUnique({
-        where: { email: IEmail }
+    const cleanEmail = String(IEmail || '').trim().toLowerCase();
+    const isUserExist = yield prisma_1.default.auth.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } }
     });
     if (!isUserExist) {
-        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User is not Exist !");
+        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User does not exist !");
     }
     const isPasswordMatched = yield bcrypt_1.default.compare(password, isUserExist.password);
     if (!isPasswordMatched) {
-        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "Password is not Matched !");
+        throw new apiError_1.default(http_status_1.default.BAD_REQUEST, "Password does not match !");
     }
     const { role, userId, isDemo, email } = isUserExist;
     const accessToken = jwtHelper_1.JwtHelper.createToken({ role, userId, email, isDemo: role === 'admin' ? Boolean(isDemo) : false }, config_1.default.jwt.secret, config_1.default.jwt.JWT_EXPIRES_IN);
@@ -107,21 +109,21 @@ const VerificationUser = (user) => __awaiter(void 0, void 0, void 0, function* (
 });
 const resetPassword = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const { email } = payload;
-    const isUserExist = yield prisma_1.default.auth.findUnique({
-        where: { email: email }
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const isUserExist = yield prisma_1.default.auth.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } }
     });
     if (!isUserExist) {
-        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User is not Exist !");
+        throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User does not exist !");
     }
     const clientUrl = `${config_1.default.clientUrl}/reset-password/`;
     const uniqueString = uuidv4() + isUserExist.id;
-    const uniqueStringHashed = yield bcrypt_1.default.hashSync(uniqueString, 12);
+    const uniqueStringHashed = yield bcrypt_1.default.hash(uniqueString, 12);
     const encodedUniqueStringHashed = uniqueStringHashed.replace(/\//g, '-');
     const resetLink = clientUrl + isUserExist.id + '/' + encodedUniqueStringHashed;
     const currentTime = (0, moment_1.default)();
     const expiresTime = (0, moment_1.default)(currentTime).add(4, 'hours');
     yield prisma_1.default.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-        //Check if the forgotPassword record exists before attempting reset
         const existingForgotPassword = yield tx.forgotPassword.findUnique({
             where: { id: isUserExist.id }
         });
@@ -139,17 +141,15 @@ const resetPassword = (payload) => __awaiter(void 0, void 0, void 0, function* (
         });
         if (forgotPassword) {
             const pathName = path.join(__dirname, '../../../../template/resetPassword.html');
-            const obj = {
-                link: resetLink
-            };
+            const obj = { link: resetLink };
             const subject = "Request to Reset Password";
             const toMail = isUserExist.email;
             try {
                 yield (0, emailTransporter_1.EmailtTransporter)({ pathName, replacementObj: obj, toMail, subject });
             }
             catch (error) {
-                console.log("Error reset password email", error);
-                throw new apiError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, "Unable to send reset email!");
+                console.warn("[Reset Password] Unable to send email:", error === null || error === void 0 ? void 0 : error.message);
+                console.log(`[Reset Password URL]: ${resetLink}`);
             }
         }
         return forgotPassword;
@@ -165,9 +165,8 @@ const PassworResetConfirm = (payload) => __awaiter(void 0, void 0, void 0, funct
             where: { id: userId }
         });
         if (!isUserExist) {
-            throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User is not Exist !");
+            throw new apiError_1.default(http_status_1.default.NOT_FOUND, "User does not exist !");
         }
-        ;
         const resetLink = `${config_1.default.clientUrl}/reset-password/${isUserExist.id}/${uniqueString}`;
         const getForgotRequest = yield tx.forgotPassword.findFirst({
             where: {
@@ -178,22 +177,22 @@ const PassworResetConfirm = (payload) => __awaiter(void 0, void 0, void 0, funct
         if (!getForgotRequest) {
             throw new apiError_1.default(http_status_1.default.NOT_FOUND, "Forgot Request was not found or Invalid !");
         }
-        ;
         const expiresAt = (0, moment_1.default)(getForgotRequest.expiresAt);
         const currentTime = (0, moment_1.default)();
         if (expiresAt.isBefore(currentTime)) {
             throw new apiError_1.default(http_status_1.default.NOT_FOUND, "Forgot Request has been expired !");
         }
         else {
+            const hashedPassword = yield bcrypt_1.default.hash(password, 12);
             yield tx.auth.update({
                 where: {
                     id: userId
                 },
                 data: {
-                    password: password && (yield bcrypt_1.default.hashSync(password, 12))
+                    password: hashedPassword
                 }
             });
-            yield prisma_1.default.forgotPassword.delete({
+            yield tx.forgotPassword.delete({
                 where: {
                     id: getForgotRequest.id
                 }

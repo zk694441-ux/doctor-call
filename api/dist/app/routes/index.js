@@ -16,9 +16,14 @@ const doctorTimeSlot_route_1 = require("../modules/doctorTimeSlot/doctorTimeSlot
 const blog_route_1 = require("../modules/blog/blog.route");
 const medicine_route_1 = require("../modules/medicines/medicine.route");
 const contact_route_1 = require("../modules/contact/contact.route");
+const payment_route_1 = require("../modules/payment/payment.route");
 const router = express_1.default.Router();
 router.use(demoAdminGuard_1.demoAdminGuard);
 const moduleRoutes = [
+    {
+        path: '/payment',
+        route: payment_route_1.PaymentRouter,
+    },
     {
         path: '/doctor',
         route: doctor_route_1.DoctorRouter,

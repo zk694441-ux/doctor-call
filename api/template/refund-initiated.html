@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Refund Initiated</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
+<div style="max-width:600px;margin:auto;background:#fff;border-radius:8px;padding:30px">
+  <h2 style="color:#fd7e14">Refund Initiated</h2>
+  <p>Hi {{patientName}},</p>
+  <p>A refund of <strong>${{refundAmount}}</strong> has been initiated for your appointment.</p>
+  <table style="width:100%;border-collapse:collapse;margin:20px 0">
+    <tr><td style="padding:8px;border-bottom:1px solid #eee"><strong>Appointment Tracking ID</strong></td><td style="padding:8px;border-bottom:1px solid #eee">{{trackingId}}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee"><strong>Refund Amount</strong></td><td style="padding:8px;border-bottom:1px solid #eee">${{refundAmount}}</td></tr>
+    <tr><td style="padding:8px"><strong>Reason</strong></td><td style="padding:8px">{{reason}}</td></tr>
+  </table>
+  <p>Refunds typically take 5–7 business days to reflect in your original payment method.</p>
+  <p style="color:#6c757d;font-size:12px">Support contact: zahidkhan@gmail.com</p>
+</div>
+</body>
+</html>

@@ -1,140 +1,100 @@
 import moment from 'moment';
 import { Link } from 'react-router-dom';
-import { Card, Input, Checkbox } from 'antd';
-import { FaUserMd } from 'react-icons/fa';
+import { Card, Checkbox } from 'antd';
+import { FaUserMd, FaCreditCard, FaMoneyBillWave, FaShieldAlt } from 'react-icons/fa';
 import img from '../../../images/avatar.jpg';
 import './BookingCheckout.css';
 import '../../Appointment/AppointmentFlow.css';
 
 const CheckoutPage = ({ handleChange, selectValue, isCheck, setIsChecked, data, selectedDate, selectTime }) => {
-  const { nameOnCard, cardNumber, expiredMonth, cardExpiredYear, cvv, paymentType, paymentMethod } = selectValue;
+  const { paymentType = 'online' } = selectValue;
 
   const handleCheck = () => setIsChecked(!isCheck);
 
   const price = data?.price ?? 60;
   const doctorImg = data?.img ?? img;
-  const vat = (15 / 100) * (Number(price) + 10);
-  const total = Number(price) + 10 + vat;
+  const bookingFee = 10;
+  const vat = (15 / 100) * (Number(price) + bookingFee);
+  const total = Number(price) + bookingFee + vat;
 
   const fullName = data
     ? `Dr. ${(data.firstName || '')} ${(data.lastName || '')}`.trim()
     : 'Doctor';
 
+  const isOnlineSelected = paymentType === 'online' || paymentType === 'creditCard';
+
   return (
     <div className="appointment-step appointment-step--payment">
-      <p className="appointment-step__title">Payment</p>
-      <p className="appointment-step__subtitle">Complete your booking with secure payment.</p>
+      <p className="appointment-step__title">Payment Options</p>
+      <p className="appointment-step__subtitle">Choose your preferred consultation payment method.</p>
 
       <div className="checkout-layout">
         <div>
           <Card className="checkout-form-card">
-            <p className="checkout-form-card__title">Payment method</p>
-            <div className="payment-method-options">
+            <p className="checkout-form-card__title">Select Payment Method</p>
+            <div className="payment-method-options" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
               <div
-                className={`payment-method-option ${paymentType === 'creditCard' ? 'payment-method-option--active' : ''}`}
-                onClick={() => handleChange({ target: { name: 'paymentType', value: 'creditCard' } })}
+                className={`payment-method-option ${isOnlineSelected ? 'payment-method-option--active' : ''}`}
+                onClick={() => {
+                  handleChange({ target: { name: 'paymentType', value: 'online' } });
+                  handleChange({ target: { name: 'paymentMethod', value: 'razorpay' } });
+                }}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleChange({ target: { name: 'paymentType', value: 'creditCard' } })}
+                style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
               >
-                Credit / Debit card
+                <FaCreditCard style={{ fontSize: '1.25rem', color: isOnlineSelected ? '#0d6efd' : '#6c757d' }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Pay Online</div>
+                  <div style={{ fontSize: '12px', color: '#6c757d' }}>Razorpay / UPI / Cards</div>
+                </div>
               </div>
+
               <div
                 className={`payment-method-option ${paymentType === 'cash' ? 'payment-method-option--active' : ''}`}
-                onClick={() => handleChange({ target: { name: 'paymentType', value: 'cash' } })}
+                onClick={() => {
+                  handleChange({ target: { name: 'paymentType', value: 'cash' } });
+                  handleChange({ target: { name: 'paymentMethod', value: 'cash' } });
+                }}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && handleChange({ target: { name: 'paymentType', value: 'cash' } })}
+                style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
               >
-                Pay at clinic (cash)
+                <FaMoneyBillWave style={{ fontSize: '1.25rem', color: paymentType === 'cash' ? '#0d6efd' : '#6c757d' }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>Pay at Clinic</div>
+                  <div style={{ fontSize: '12px', color: '#6c757d' }}>Cash on arrival</div>
+                </div>
               </div>
             </div>
 
-            {paymentType === 'creditCard' && (
-              <>
-                <div className="row g-3 mb-3">
-                  <div className="col-12">
-                    <label className="form-label">Name on card</label>
-                    <Input
-                      placeholder="Name as on card"
-                      name="nameOnCard"
-                      value={nameOnCard || ''}
-                      onChange={handleChange}
-                      size="large"
-                    />
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label">Card number</label>
-                    <Input
-                      placeholder="1234 5678 9876 5432"
-                      name="cardNumber"
-                      value={cardNumber || ''}
-                      onChange={handleChange}
-                      size="large"
-                      maxLength={19}
-                    />
-                  </div>
-                  <div className="col-4">
-                    <label className="form-label">Expiry month</label>
-                    <Input
-                      placeholder="MM"
-                      name="expiredMonth"
-                      value={expiredMonth || ''}
-                      onChange={handleChange}
-                      size="large"
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="col-4">
-                    <label className="form-label">Expiry year</label>
-                    <Input
-                      placeholder="YY"
-                      name="cardExpiredYear"
-                      value={cardExpiredYear || ''}
-                      onChange={handleChange}
-                      size="large"
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="col-4">
-                    <label className="form-label">CVV</label>
-                    <Input
-                      placeholder="CVV"
-                      name="cvv"
-                      value={cvv || ''}
-                      onChange={handleChange}
-                      size="large"
-                      maxLength={4}
-                    />
-                  </div>
+            {isOnlineSelected ? (
+              <div style={{ background: '#f0f7ff', border: '1px solid #cce5ff', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#004085', fontWeight: 600, marginBottom: '6px' }}>
+                  <FaShieldAlt /> 100% Secure Online Payment
                 </div>
-                <div className="payment-method-options">
-                  <div
-                    className={`payment-method-option ${paymentMethod === 'paypal' ? 'payment-method-option--active' : ''}`}
-                    onClick={() => handleChange({ target: { name: 'paymentMethod', value: 'paypal' } })}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    PayPal
-                  </div>
-                  <div
-                    className={`payment-method-option ${paymentMethod === 'payoneer' ? 'payment-method-option--active' : ''}`}
-                    onClick={() => handleChange({ target: { name: 'paymentMethod', value: 'payoneer' } })}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    Payoneer
-                  </div>
+                <p style={{ margin: 0, fontSize: '13px', color: '#495057' }}>
+                  Your appointment slot will be reserved for 15 minutes while payment is processed securely via Razorpay. Supports Credit/Debit Cards, UPI, Net Banking, and Wallets.
+                </p>
+              </div>
+            ) : (
+              <div style={{ background: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2e7d32', fontWeight: 600, marginBottom: '6px' }}>
+                  <FaMoneyBillWave /> Pay at Clinic
                 </div>
-              </>
+                <p style={{ margin: 0, fontSize: '13px', color: '#495057' }}>
+                  You can pay the consultation fee in cash directly at the doctor's reception desk before your appointment.
+                </p>
+              </div>
             )}
 
             <div className="terms-accept mt-4">
               <Checkbox id="terms_accept" checked={isCheck} onChange={handleCheck}>
                 I have read and accept the{' '}
                 <a className="text-primary" href="#terms" style={{ cursor: 'pointer', textDecoration: 'none' }}>
-                  Terms &amp; Conditions
-                </a>
+                  Cancellation &amp; Refund Policy
+                </a>{' '}
+                (Full refund up to 24h prior, 70% partial refund up to 4h prior).
               </Checkbox>
             </div>
           </Card>
@@ -171,14 +131,14 @@ const CheckoutPage = ({ handleChange, selectValue, isCheck, setIsChecked, data, 
             </div>
             <div className="summary-row">
               <span>Booking fee</span>
-              <span>$10</span>
+              <span>${bookingFee}</span>
             </div>
             <div className="summary-row">
               <span>VAT (15%)</span>
               <span>${vat.toFixed(2)}</span>
             </div>
             <div className="summary-row summary-total">
-              <span>Total</span>
+              <span>Total Payable</span>
               <span className="amount">${total.toFixed(2)}</span>
             </div>
           </Card>
