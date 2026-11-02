@@ -128,11 +128,6 @@ const SignUp = ({ setSignUp }) => {
 
     return (
         <form className="sign-up-form" onSubmit={hanldeOnSubmit}>
-            <div className="alert alert-warning small text-start mb-3" role="alert">
-                <strong>Fair use:</strong> Do not misuse this app or create accounts you do not need. Patient sign-up uses email +
-                password only. Admin accounts are not created here — they are added
-                in the database with <code>role = admin</code>.
-            </div>
             <h2 className="title">Sign Up</h2>
             <div className="input-field">
                 <span className="fIcon"><FaUser /></span>
