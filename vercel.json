@@ -1,31 +1,38 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "app": {
-      "root": ".",
-      "framework": "create-react-app",
-      "buildCommand": "npm run build",
-      "outputDirectory": "build"
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     },
-    "api": {
-      "root": "api",
-      "framework": "express",
-      "entrypoint": "index.js",
-      "buildCommand": "npm run build"
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "api"
-      }
+      "src": "/api/(.*)",
+      "dest": "api/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": {
-        "service": "app"
-      }
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
