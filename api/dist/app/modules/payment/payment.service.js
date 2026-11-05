@@ -171,7 +171,7 @@ const verifyPayment = (payload) => __awaiter(void 0, void 0, void 0, function* (
  * Secure webhook verification with idempotent event ledger
  */
 const handleWebhook = (rawBody, signature) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
     const provider = (0, paymentProviders_1.getPaymentProvider)();
     if (!provider.verifyWebhookSignature(rawBody, signature)) {
         throw new apiError_1.default(http_status_1.default.UNAUTHORIZED, 'Invalid webhook signature');
@@ -180,7 +180,7 @@ const handleWebhook = (rawBody, signature) => __awaiter(void 0, void 0, void 0, 
     try {
         event = JSON.parse(rawBody.toString('utf-8'));
     }
-    catch (_g) {
+    catch (_p) {
         throw new apiError_1.default(http_status_1.default.BAD_REQUEST, 'Invalid webhook JSON payload');
     }
     const eventId = event.id || `${event.event}_${Date.now()}`;
@@ -238,13 +238,35 @@ const handleWebhook = (rawBody, signature) => __awaiter(void 0, void 0, void 0, 
         const refundEntity = (_f = (_e = event.payload) === null || _e === void 0 ? void 0 : _e.refund) === null || _f === void 0 ? void 0 : _f.entity;
         const gatewayRefundId = refundEntity === null || refundEntity === void 0 ? void 0 : refundEntity.id;
         if (gatewayRefundId) {
-            yield prisma_1.default.refund.updateMany({
+            const existingRefund = yield prisma_1.default.refund.findFirst({
                 where: { gatewayRefundId },
-                data: {
-                    status: 'completed',
-                    processedAt: new Date(),
-                },
+                include: { payment: { include: { appointment: { include: { patient: true, doctor: true } } } } },
             });
+            if (existingRefund) {
+                yield prisma_1.default.refund.update({
+                    where: { id: existingRefund.id },
+                    data: {
+                        status: 'completed',
+                        processedAt: new Date(),
+                    },
+                });
+                const appt = (_g = existingRefund.payment) === null || _g === void 0 ? void 0 : _g.appointment;
+                const patientEmail = (appt === null || appt === void 0 ? void 0 : appt.email) || ((_h = appt === null || appt === void 0 ? void 0 : appt.patient) === null || _h === void 0 ? void 0 : _h.email);
+                if (patientEmail) {
+                    (0, notificationEngine_1.sendNotification)({
+                        type: 'refund-completed',
+                        to: patientEmail,
+                        phone: (appt === null || appt === void 0 ? void 0 : appt.phone) || ((_j = appt === null || appt === void 0 ? void 0 : appt.patient) === null || _j === void 0 ? void 0 : _j.mobile) || undefined,
+                        data: {
+                            patientName: `${(appt === null || appt === void 0 ? void 0 : appt.firstName) || ((_k = appt === null || appt === void 0 ? void 0 : appt.patient) === null || _k === void 0 ? void 0 : _k.firstName) || ''} ${(appt === null || appt === void 0 ? void 0 : appt.lastName) || ((_l = appt === null || appt === void 0 ? void 0 : appt.patient) === null || _l === void 0 ? void 0 : _l.lastName) || ''}`.trim(),
+                            doctorName: `${((_m = appt === null || appt === void 0 ? void 0 : appt.doctor) === null || _m === void 0 ? void 0 : _m.firstName) || ''} ${((_o = appt === null || appt === void 0 ? void 0 : appt.doctor) === null || _o === void 0 ? void 0 : _o.lastName) || ''}`.trim(),
+                            trackingId: (appt === null || appt === void 0 ? void 0 : appt.trackingId) || '',
+                            refundId: existingRefund.id,
+                            refundAmount: Number(existingRefund.amount).toFixed(2),
+                        },
+                    }).catch(() => { });
+                }
+            }
         }
     }
 });
@@ -254,7 +276,7 @@ const handleWebhook = (rawBody, signature) => __awaiter(void 0, void 0, void 0, 
  * Full and partial refunds are tracked with amount, status, reason, gateway ref.
  */
 const requestRefund = (payload, user) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
     const { appointmentId, reason } = payload;
     const appointment = yield prisma_1.default.appointments.findUnique({
         where: { id: appointmentId },
@@ -346,19 +368,48 @@ const requestRefund = (payload, user) => __awaiter(void 0, void 0, void 0, funct
             status: 'cancelled',
         },
     });
-    // Send notifications: cancellation + refund initiated
+    // Send notifications: cancellation + refund initiated/completed
     const patientEmail = appointment.email || ((_k = appointment.patient) === null || _k === void 0 ? void 0 : _k.email);
     if (patientEmail) {
+        // 1. Appointment cancellation email notification
         (0, notificationEngine_1.sendNotification)({
-            type: 'refund-initiated',
+            type: 'appointment-cancelled',
             to: patientEmail,
             phone: appointment.phone || ((_l = appointment.patient) === null || _l === void 0 ? void 0 : _l.mobile) || undefined,
             data: {
                 patientName: `${appointment.firstName || ((_m = appointment.patient) === null || _m === void 0 ? void 0 : _m.firstName) || ''} ${appointment.lastName || ((_o = appointment.patient) === null || _o === void 0 ? void 0 : _o.lastName) || ''}`.trim(),
                 doctorName: `${((_p = appointment.doctor) === null || _p === void 0 ? void 0 : _p.firstName) || ''} ${((_q = appointment.doctor) === null || _q === void 0 ? void 0 : _q.lastName) || ''}`.trim(),
+                scheduleDate: appointment.scheduleDate || '',
+                scheduleTime: appointment.scheduleTime || '',
+                refundAmount: calculatedRefundAmount.toFixed(2),
+            },
+        }).catch(() => { });
+        // 2. Refund status email notification
+        const notificationType = initialRefundStatus === 'completed' ? 'refund-completed' : 'refund-initiated';
+        (0, notificationEngine_1.sendNotification)({
+            type: notificationType,
+            to: patientEmail,
+            phone: appointment.phone || ((_r = appointment.patient) === null || _r === void 0 ? void 0 : _r.mobile) || undefined,
+            data: {
+                patientName: `${appointment.firstName || ((_s = appointment.patient) === null || _s === void 0 ? void 0 : _s.firstName) || ''} ${appointment.lastName || ((_t = appointment.patient) === null || _t === void 0 ? void 0 : _t.lastName) || ''}`.trim(),
+                doctorName: `${((_u = appointment.doctor) === null || _u === void 0 ? void 0 : _u.firstName) || ''} ${((_v = appointment.doctor) === null || _v === void 0 ? void 0 : _v.lastName) || ''}`.trim(),
                 trackingId: appointment.trackingId || '',
+                refundId: refund.id,
                 refundAmount: calculatedRefundAmount.toFixed(2),
                 reason: reason || 'Cancellation request',
+            },
+        }).catch(() => { });
+    }
+    const doctorEmail = (_w = appointment.doctor) === null || _w === void 0 ? void 0 : _w.email;
+    if (doctorEmail) {
+        (0, notificationEngine_1.sendNotification)({
+            type: 'appointment-cancelled',
+            to: doctorEmail,
+            data: {
+                patientName: `${appointment.firstName || ((_x = appointment.patient) === null || _x === void 0 ? void 0 : _x.firstName) || ''} ${appointment.lastName || ((_y = appointment.patient) === null || _y === void 0 ? void 0 : _y.lastName) || ''}`.trim(),
+                doctorName: `${((_z = appointment.doctor) === null || _z === void 0 ? void 0 : _z.firstName) || ''} ${((_0 = appointment.doctor) === null || _0 === void 0 ? void 0 : _0.lastName) || ''}`.trim(),
+                scheduleDate: appointment.scheduleDate || '',
+                scheduleTime: appointment.scheduleTime || '',
             },
         }).catch(() => { });
     }

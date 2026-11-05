@@ -242,13 +242,35 @@ const handleWebhook = async (rawBody: Buffer, signature: string): Promise<void> 
     const refundEntity = event.payload?.refund?.entity;
     const gatewayRefundId = refundEntity?.id;
     if (gatewayRefundId) {
-      await prisma.refund.updateMany({
+      const existingRefund = await prisma.refund.findFirst({
         where: { gatewayRefundId },
-        data: {
-          status: 'completed',
-          processedAt: new Date(),
-        },
+        include: { payment: { include: { appointment: { include: { patient: true, doctor: true } } } } },
       });
+      if (existingRefund) {
+        await prisma.refund.update({
+          where: { id: existingRefund.id },
+          data: {
+            status: 'completed',
+            processedAt: new Date(),
+          },
+        });
+        const appt = existingRefund.payment?.appointment;
+        const patientEmail = appt?.email || appt?.patient?.email;
+        if (patientEmail) {
+          sendNotification({
+            type: 'refund-completed',
+            to: patientEmail,
+            phone: appt?.phone || appt?.patient?.mobile || undefined,
+            data: {
+              patientName: `${appt?.firstName || appt?.patient?.firstName || ''} ${appt?.lastName || appt?.patient?.lastName || ''}`.trim(),
+              doctorName: `${appt?.doctor?.firstName || ''} ${appt?.doctor?.lastName || ''}`.trim(),
+              trackingId: appt?.trackingId || '',
+              refundId: existingRefund.id,
+              refundAmount: Number(existingRefund.amount).toFixed(2),
+            },
+          }).catch(() => {});
+        }
+      }
     }
   }
 };
@@ -377,19 +399,50 @@ const requestRefund = async (payload: IRequestRefundPayload, user: any): Promise
     },
   });
 
-  // Send notifications: cancellation + refund initiated
+  // Send notifications: cancellation + refund initiated/completed
   const patientEmail = appointment.email || appointment.patient?.email;
   if (patientEmail) {
+    // 1. Appointment cancellation email notification
     sendNotification({
-      type: 'refund-initiated',
+      type: 'appointment-cancelled',
+      to: patientEmail,
+      phone: appointment.phone || appointment.patient?.mobile || undefined,
+      data: {
+        patientName: `${appointment.firstName || appointment.patient?.firstName || ''} ${appointment.lastName || appointment.patient?.lastName || ''}`.trim(),
+        doctorName: `${appointment.doctor?.firstName || ''} ${appointment.doctor?.lastName || ''}`.trim(),
+        scheduleDate: appointment.scheduleDate || '',
+        scheduleTime: appointment.scheduleTime || '',
+        refundAmount: calculatedRefundAmount.toFixed(2),
+      },
+    }).catch(() => {});
+
+    // 2. Refund status email notification
+    const notificationType = initialRefundStatus === 'completed' ? 'refund-completed' : 'refund-initiated';
+    sendNotification({
+      type: notificationType,
       to: patientEmail,
       phone: appointment.phone || appointment.patient?.mobile || undefined,
       data: {
         patientName: `${appointment.firstName || appointment.patient?.firstName || ''} ${appointment.lastName || appointment.patient?.lastName || ''}`.trim(),
         doctorName: `${appointment.doctor?.firstName || ''} ${appointment.doctor?.lastName || ''}`.trim(),
         trackingId: appointment.trackingId || '',
+        refundId: refund.id,
         refundAmount: calculatedRefundAmount.toFixed(2),
         reason: reason || 'Cancellation request',
+      },
+    }).catch(() => {});
+  }
+
+  const doctorEmail = appointment.doctor?.email;
+  if (doctorEmail) {
+    sendNotification({
+      type: 'appointment-cancelled',
+      to: doctorEmail,
+      data: {
+        patientName: `${appointment.firstName || appointment.patient?.firstName || ''} ${appointment.lastName || appointment.patient?.lastName || ''}`.trim(),
+        doctorName: `${appointment.doctor?.firstName || ''} ${appointment.doctor?.lastName || ''}`.trim(),
+        scheduleDate: appointment.scheduleDate || '',
+        scheduleTime: appointment.scheduleTime || '',
       },
     }).catch(() => {});
   }

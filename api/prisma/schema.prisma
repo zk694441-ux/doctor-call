@@ -21,23 +21,21 @@ model Auth {
 }
 
 model UserVerfication {
-  id     String @id @default(uuid())
-  userId String
+  id           String    @id @default(uuid())
+  userId       String
   uniqueString String?
-  expiresAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model ForgotPassword {
-  id     String @id @default(uuid())
-  userId String
+  id           String    @id @default(uuid())
+  userId       String
   uniqueString String?
-  expiresAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("forgot-password")
 }
@@ -60,9 +58,9 @@ model Patient {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   appointments Appointments[]
-  Reviews      Reviews[]
-  Prescription Prescription[]
   favourites   Favourites[]
+  Prescription Prescription[]
+  Reviews      Reviews[]
 
   @@map("Patient")
 }
@@ -104,69 +102,62 @@ model Doctor {
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
   appointments           Appointments[]
-  prescription           Prescription[]
-  favourites             Favourites[]
-  DoctorTimeSlot         DoctorTimeSlot[]
   blogs                  Blogs[]
+  DoctorTimeSlot         DoctorTimeSlot[]
+  favourites             Favourites?
+  prescription           Prescription[]
   reviews                Reviews[]
 
   @@map("Doctor")
 }
 
 model Appointments {
-  id        String   @id @default(uuid())
-  patientId String?
-  patient   Patient? @relation(fields: [patientId], references: [id])
-  doctorId  String?
-  doctor    Doctor?  @relation(fields: [doctorId], references: [id])
-
-  trackingId         String?             @unique
-  firstName          String?
-  lastName           String?
-  email              String?
-  phone              String?
-  address            String?
-  description        String?
-  scheduleDate       String?
-  scheduleTime       String?
-  reasonForVisit     String?
-  status             String?             @default("pending")
-  paymentStatus      paymentStatus?      @default(unpaid)
-  prescriptionStatus prescriptionStatus? @default(notIssued)
-  isFollowUp         Boolean?            @default(false)
+  id                  String              @id @default(uuid())
+  patientId           String?
+  doctorId            String?
+  trackingId          String?             @unique
+  firstName           String?
+  lastName            String?
+  email               String?
+  phone               String?
+  address             String?
+  description         String?
+  scheduleDate        String?
+  scheduleTime        String?
+  reasonForVisit      String?
+  status              String?             @default("pending")
+  paymentStatus       paymentStatus?      @default(unpaid)
+  prescriptionStatus  prescriptionStatus? @default(notIssued)
+  isFollowUp          Boolean?            @default(false)
+  patientType         String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   paymentPendingUntil DateTime?
-  patientType        String?
-
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  prescription Prescription[]
-  payment      Payment[]
+  doctor              Doctor?             @relation(fields: [doctorId], references: [id])
+  patient             Patient?            @relation(fields: [patientId], references: [id])
+  payment             Payment[]
+  prescription        Prescription[]
 
   @@map("Appointments")
 }
 
 model Payment {
-  id            String        @id @default(uuid())
+  id            String       @id @default(uuid())
   appointmentId String
-  appointment   Appointments  @relation(fields: [appointmentId], references: [id])
   paymentMethod String
   paymentType   String
-
-  DoctorFee   Int
-  bookingFee  Int
-  vat         Float?
-  totalAmount Float
-
-  // Gateway fields
-  provider      String   @default("razorpay")
-  orderId       String?  @unique
-  paymentId     String?  @unique
-  status        String   @default("pending")
-
-  refunds   Refund[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  DoctorFee     Int
+  bookingFee    Int
+  vat           Float?
+  totalAmount   Float
+  createdAt     DateTime     @default(now())
+  orderId       String?      @unique
+  paymentId     String?      @unique
+  provider      String       @default("razorpay")
+  status        String       @default("pending")
+  updatedAt     DateTime     @default(now()) @updatedAt
+  appointment   Appointments @relation(fields: [appointmentId], references: [id])
+  refunds       Refund[]
 
   @@map("Payment")
 }
@@ -174,7 +165,6 @@ model Payment {
 model Refund {
   id              String    @id @default(uuid())
   paymentId       String
-  payment         Payment   @relation(fields: [paymentId], references: [id])
   gatewayRefundId String?   @unique
   amount          Float
   reason          String?
@@ -182,6 +172,7 @@ model Refund {
   processedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @default(now()) @updatedAt
+  payment         Payment   @relation(fields: [paymentId], references: [id])
 
   @@map("Refund")
 }
@@ -198,50 +189,39 @@ model PaymentEvent {
 }
 
 model Reviews {
-  id String @id @default(uuid())
-
-  doctorId String
-  doctor   Doctor? @relation(fields: [doctorId], references: [id])
-
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id])
-
+  id            String   @id @default(uuid())
+  doctorId      String
+  patientId     String
   description   String?
   star          String?
   isRecommended Boolean?
   response      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  doctor        Doctor   @relation(fields: [doctorId], references: [id])
+  patient       Patient  @relation(fields: [patientId], references: [id])
 
   @@map("Reviews")
 }
 
 model Prescription {
-  id String @id @default(uuid())
-
-  doctorId String
-  doctor   Doctor @relation(fields: [doctorId], references: [id])
-
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id])
-
+  id            String       @id @default(uuid())
+  doctorId      String
+  patientId     String
   appointmentId String
+  followUpdate  String?
+  instruction   String?
+  isFullfilled  Boolean      @default(false)
+  isArchived    Boolean      @default(false)
+  daignosis     String?
+  disease       String
+  test          String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  medicines     Medicine[]
   appointment   Appointments @relation(fields: [appointmentId], references: [id])
-
-  followUpdate String?
-  instruction  String?
-  isFullfilled Boolean @default(false)
-  isArchived   Boolean @default(false)
-  daignosis    String?
-
-  disease String
-  test    String?
-
-  medicines Medicine[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  doctor        Doctor       @relation(fields: [doctorId], references: [id])
+  patient       Patient      @relation(fields: [patientId], references: [id])
 
   @@map("Prescription")
 }
@@ -249,15 +229,13 @@ model Prescription {
 model Medicine {
   id             String       @id @default(uuid())
   prescriptionId String
+  medicine       String?
+  dosage         String?
+  frequency      String?
+  duration       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   prescription   Prescription @relation(fields: [prescriptionId], references: [id])
-
-  medicine  String?
-  dosage    String?
-  frequency String?
-  duration  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@map("Medicine")
 }
@@ -265,24 +243,23 @@ model Medicine {
 model Favourites {
   id        String   @id @default(uuid())
   doctorId  String   @unique
+  patientId String?
   doctor    Doctor   @relation(fields: [doctorId], references: [id])
   patient   Patient? @relation(fields: [patientId], references: [id])
-  patientId String?
 
   @@map("Favourites")
 }
 
 model DoctorTimeSlot {
-  id String @id @default(uuid())
-
+  id             String        @id @default(uuid())
   doctorId       String
-  doctor         Doctor        @relation(fields: [doctorId], references: [id])
   day            Day?
-  timeSlot       ScheduleDay[]
   weekDay        String?
   maximumPatient Int?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  doctor         Doctor        @relation(fields: [doctorId], references: [id])
+  timeSlot       ScheduleDay[]
 
   @@map("DoctorTimeSlot")
 }
@@ -291,8 +268,8 @@ model ScheduleDay {
   id               Int             @id @default(autoincrement())
   startTime        String
   endTime          String
-  doctorTimeSlot   DoctorTimeSlot? @relation(fields: [doctorTimeSlotId], references: [id])
   doctorTimeSlotId String?
+  doctorTimeSlot   DoctorTimeSlot? @relation(fields: [doctorTimeSlotId], references: [id])
 }
 
 model Blogs {
@@ -301,9 +278,9 @@ model Blogs {
   description String
   img         String?
   userId      String
-  user        Doctor   @relation(fields: [userId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  user        Doctor   @relation(fields: [userId], references: [id])
 }
 
 enum UserRole {

@@ -8,6 +8,9 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 const config_1 = __importDefault(require("../config"));
 exports.Transporter = nodemailer_1.default.createTransport({
     service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
         user: config_1.default.gmail_app_Email,
         pass: config_1.default.emailPass

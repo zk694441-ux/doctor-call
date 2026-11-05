@@ -52,6 +52,8 @@ async function readTemplate(templateFile: string): Promise<string | null> {
     path.join(__dirname, '../../template', templateFile),
     path.join(process.cwd(), 'template', templateFile),
     path.join(process.cwd(), 'dist', 'template', templateFile),
+    path.join(process.cwd(), 'api', 'template', templateFile),
+    path.join(process.cwd(), 'api', 'dist', 'template', templateFile),
   ];
 
   for (const p of possiblePaths) {

@@ -45,6 +45,8 @@ function readTemplate(templateFile) {
             path_1.default.join(__dirname, '../../template', templateFile),
             path_1.default.join(process.cwd(), 'template', templateFile),
             path_1.default.join(process.cwd(), 'dist', 'template', templateFile),
+            path_1.default.join(process.cwd(), 'api', 'template', templateFile),
+            path_1.default.join(process.cwd(), 'api', 'dist', 'template', templateFile),
         ];
         for (const p of possiblePaths) {
             try {

@@ -52,6 +52,7 @@ const apiError_1 = __importDefault(require("../../../errors/apiError"));
 const http_status_1 = __importDefault(require("http-status"));
 const moment_1 = __importDefault(require("moment"));
 const emailTransporter_1 = require("../../../helpers/emailTransporter");
+const notificationEngine_1 = require("../../../helpers/notificationEngine");
 const path = __importStar(require("path"));
 const config_1 = __importDefault(require("../../../config"));
 const createAppointment = (payload) => __awaiter(void 0, void 0, void 0, function* () {
@@ -390,12 +391,55 @@ const deleteAppointment = (id) => __awaiter(void 0, void 0, void 0, function* ()
     return result;
 });
 const updateAppointment = (id, payload) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    const previous = yield prisma_1.default.appointments.findUnique({
+        where: { id },
+        include: { doctor: true, patient: true }
+    });
     const result = yield prisma_1.default.appointments.update({
         data: payload,
         where: {
             id: id
+        },
+        include: {
+            doctor: true,
+            patient: true
         }
     });
+    if (payload.status === 'cancelled' && (previous === null || previous === void 0 ? void 0 : previous.status) !== 'cancelled') {
+        const patientEmail = result.email || ((_a = result.patient) === null || _a === void 0 ? void 0 : _a.email);
+        if (patientEmail) {
+            (0, notificationEngine_1.sendNotification)({
+                type: 'appointment-cancelled',
+                to: patientEmail,
+                phone: result.phone || ((_b = result.patient) === null || _b === void 0 ? void 0 : _b.mobile) || undefined,
+                data: {
+                    patientName: `${result.firstName || ((_c = result.patient) === null || _c === void 0 ? void 0 : _c.firstName) || ''} ${result.lastName || ((_d = result.patient) === null || _d === void 0 ? void 0 : _d.lastName) || ''}`.trim(),
+                    doctorName: `${((_e = result.doctor) === null || _e === void 0 ? void 0 : _e.firstName) || ''} ${((_f = result.doctor) === null || _f === void 0 ? void 0 : _f.lastName) || ''}`.trim(),
+                    scheduleDate: result.scheduleDate,
+                    scheduleTime: result.scheduleTime,
+                }
+            }).catch(() => { });
+        }
+    }
+    if ((payload.scheduleDate && payload.scheduleDate !== (previous === null || previous === void 0 ? void 0 : previous.scheduleDate)) ||
+        (payload.scheduleTime && payload.scheduleTime !== (previous === null || previous === void 0 ? void 0 : previous.scheduleTime))) {
+        const patientEmail = result.email || ((_g = result.patient) === null || _g === void 0 ? void 0 : _g.email);
+        if (patientEmail) {
+            (0, notificationEngine_1.sendNotification)({
+                type: 'appointment-rescheduled',
+                to: patientEmail,
+                phone: result.phone || ((_h = result.patient) === null || _h === void 0 ? void 0 : _h.mobile) || undefined,
+                data: {
+                    patientName: `${result.firstName || ((_j = result.patient) === null || _j === void 0 ? void 0 : _j.firstName) || ''} ${result.lastName || ((_k = result.patient) === null || _k === void 0 ? void 0 : _k.lastName) || ''}`.trim(),
+                    doctorName: `${((_l = result.doctor) === null || _l === void 0 ? void 0 : _l.firstName) || ''} ${((_m = result.doctor) === null || _m === void 0 ? void 0 : _m.lastName) || ''}`.trim(),
+                    scheduleDate: result.scheduleDate,
+                    scheduleTime: result.scheduleTime,
+                    trackingId: result.trackingId,
+                }
+            }).catch(() => { });
+        }
+    }
     return result;
 });
 //doctor Side

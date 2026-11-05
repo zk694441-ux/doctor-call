@@ -4,6 +4,7 @@ import ApiError from "../../../errors/apiError";
 import httpStatus from "http-status";
 import moment from 'moment';
 import { EmailtTransporter } from "../../../helpers/emailTransporter";
+import { sendNotification } from "../../../helpers/notificationEngine";
 import * as path from 'path';
 import config from "../../../config";
 
@@ -362,12 +363,60 @@ const deleteAppointment = async (id: string): Promise<any> => {
 }
 
 const updateAppointment = async (id: string, payload: Partial<Appointments>): Promise<Appointments> => {
+    const previous = await prisma.appointments.findUnique({
+        where: { id },
+        include: { doctor: true, patient: true }
+    });
+
     const result = await prisma.appointments.update({
         data: payload,
         where: {
             id: id
+        },
+        include: {
+            doctor: true,
+            patient: true
         }
-    })
+    });
+
+    if (payload.status === 'cancelled' && previous?.status !== 'cancelled') {
+        const patientEmail = result.email || result.patient?.email;
+        if (patientEmail) {
+            sendNotification({
+                type: 'appointment-cancelled',
+                to: patientEmail,
+                phone: result.phone || result.patient?.mobile || undefined,
+                data: {
+                    patientName: `${result.firstName || result.patient?.firstName || ''} ${result.lastName || result.patient?.lastName || ''}`.trim(),
+                    doctorName: `${result.doctor?.firstName || ''} ${result.doctor?.lastName || ''}`.trim(),
+                    scheduleDate: result.scheduleDate,
+                    scheduleTime: result.scheduleTime,
+                }
+            }).catch(() => {});
+        }
+    }
+
+    if (
+        (payload.scheduleDate && payload.scheduleDate !== previous?.scheduleDate) ||
+        (payload.scheduleTime && payload.scheduleTime !== previous?.scheduleTime)
+    ) {
+        const patientEmail = result.email || result.patient?.email;
+        if (patientEmail) {
+            sendNotification({
+                type: 'appointment-rescheduled',
+                to: patientEmail,
+                phone: result.phone || result.patient?.mobile || undefined,
+                data: {
+                    patientName: `${result.firstName || result.patient?.firstName || ''} ${result.lastName || result.patient?.lastName || ''}`.trim(),
+                    doctorName: `${result.doctor?.firstName || ''} ${result.doctor?.lastName || ''}`.trim(),
+                    scheduleDate: result.scheduleDate,
+                    scheduleTime: result.scheduleTime,
+                    trackingId: result.trackingId,
+                }
+            }).catch(() => {});
+        }
+    }
+
     return result;
 }
 
